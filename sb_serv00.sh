@@ -31,7 +31,7 @@ read_vmess_port() {
             green "你的vmess端口为: $vmess_port"
             break
         else
-            red "输入错误，请重新输入面板开放的TCP端口"
+            yellow "输入错误，请重新输入面板开放的TCP端口"
         fi
     done
 }
@@ -43,7 +43,7 @@ read_hy2_port() {
             green "你的hysteria2端口为: $hy2_port"
             break
         else
-            red "输入错误，请重新输入面板开放的UDP端口"
+            yellow "输入错误，请重新输入面板开放的UDP端口"
         fi
     done
 }
@@ -55,7 +55,7 @@ read_tuic_port() {
             green "你的tuic端口为: $tuic_port"
             break
         else
-            red "输入错误，请重新输入面板开放的UDP端口"
+            yellow "输入错误，请重新输入面板开放的UDP端口"
         fi
     done
 }
@@ -97,21 +97,29 @@ reading "\n确定继续安装吗？【y/n】: " choice
         get_links
       ;;
     [Nn]) exit 0 ;;
-    *) red "无效的选择，请输入y或n" ;;
+    *) red "无效的选择，请输入y或n" && menu ;;
   esac
 }
 
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
-    [Yy])
+       [Yy])
           kill -9 $(ps aux | grep '[w]eb' | awk '{print $2}')
           kill -9 $(ps aux | grep '[b]ot' | awk '{print $2}')
           kill -9 $(ps aux | grep '[n]pm' | awk '{print $2}')
           rm -rf $WORKDIR
-        ;;
-    [Nn]) exit 0 ;;
-    *) red "无效的选择，请输入y或n" && menu ;;
+          ;;
+        [Nn]) exit 0 ;;
+    	*) red "无效的选择，请输入y或n" && menu ;;
+    esac
+}
+
+kill_all_tasks() {
+reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n】: " choice
+  case "$choice" in
+    [Yy]) killall -9 -u $(whoami) ;;
+       *) menu ;;
   esac
 }
 
@@ -125,6 +133,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
+	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -435,7 +444,7 @@ sleep 1
 # get ipinfo
 ISP=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g') 
 sleep 1
-
+yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
 cat > list.txt <<EOF
 vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$ISP\", \"add\": \"$IP\", \"port\": \"$vmess_port\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/vmess?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
 
@@ -448,9 +457,8 @@ EOF
 cat list.txt
 purple "list.txt saved successfully"
 purple "Running done!"
-sleep 10 
-clear
-rm -rf web bot npm boot.log config.json sb.log core
+sleep 3 
+rm -rf web bot npm boot.log config.json sb.log core tunnel.yml tunnel.json
 
 }
 
@@ -459,13 +467,17 @@ menu() {
    clear
    echo ""
    purple "=== Serv00|ct8老王sing-box一键安装脚本 ===\n"
-   echo -e "${green}脚本地址:${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
+   echo -e "${green}脚本地址：${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
+   echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
+   echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
    purple "转载请著名出处，请勿滥用\n"
    green "1. 安装sing-box"
    echo  "==============="
    red "2. 卸载sing-box"
    echo  "==============="
    green "3. 查看节点信息"
+   echo  "==============="
+   yellow "4. 清理所有进程"
    echo  "==============="
    red "0. 退出脚本"
    echo "==========="
@@ -475,6 +487,7 @@ menu() {
         1) install_singbox ;;
         2) uninstall_singbox ;; 
         3) cat $WORKDIR/list.txt ;; 
+	4) kill_all_tasks ;;
         0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 3" ;;
     esac
